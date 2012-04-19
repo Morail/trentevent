@@ -25,4 +25,14 @@ def decode_htmlentities(string):
     entity_re = re.compile("&(#?)(\d{1,5}|\w{1,8});")
     return entity_re.subn(substitute_entity, string)[0]
 
+def remove_html_tags(data):
+    """
+    >>> remove_html_tags('<b>test</b>')
+    'test'
+    >>> remove_html_tags('<a href="#" target="_blank">link</a>')
+    'link'
+    """
+    p = re.compile(r'<.*?>')
+    return p.sub('', data)
+
 ## END DECODE HTML ENTITIES
