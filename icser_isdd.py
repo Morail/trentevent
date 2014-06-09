@@ -24,7 +24,7 @@ class SuoniDelleDolomitiEventReader(EventReader):
     41
     """
 
-    file_path = "test/data/elenco_eventi.txt"
+    file_path = "test/data/elenco_%s.txt" % (datetime.today().year,)
     url = "http://www.isuonidelledolomiti.it/cms-01.00/template/st200/fileElEventi/elencoEventi_7906_L1.js"
 
         
@@ -40,57 +40,78 @@ class SuoniDelleDolomitiEventReader(EventReader):
         base_url = 'http://www.isuonidelledolomiti.it'
 
         re_url = re.compile('/IT/.*/\?s=\d+')
+        re_hours = re.compile('ore (\d{1,2})')
         
         for e in events_desc:
+
+            print e
 
             location, description, summary = '', '', ''
             date_, hour_ = None, None
 
-            if not e.startswith('Eventi['): continue
+            if not e.startswith('Eventi['):
+                print 'Not an ISDD event'
+                continue
 
             a = e.split(' = ')
 
             p = remove_html_tags(decode_htmlentities(a[1])).strip().decode("utf-8")
-            if not p: continue
+            if not p:
+                continue
 
-            list = p[1:-1].split('\',')
+            list_ = p[1:-1].split('\',')
+            #print list, len(list)
 
             event = Event()
         
             try:
 
-                date_ = list[2][1:].split('/')
+                date_ = list_[2][1:].split('/')
+                print date_
 
                 if date_:
 
                     try:
-                        hour_ = list[4][1:].split(' ')[0]
+                        print list_[4][1:]
+                        hours_match = re.search(re_hours, list_[4][1:])
+                        if hours_match:
+                            print 'MATCH!', hours_match.group()
+                            hour_ = hours_match.group().split(' ')[1]
+                            print hour_
+                        else:
+                            hour_ = 0
                     except ValueError:
                         print "ValueError while retrieving hour"
                         hour_ = 0
 
-                    dateStart = datetime(int(date_[2]),int(date_[1]),int(date_[0]), int(hour_), tzinfo=lt)
-                    dateEnd = dateStart + timedelta(hours=default_event_duration)
+                    datestart = datetime(int(date_[2]), int(date_[1]), int(date_[0]), int(hour_), tzinfo=lt)
+                    dateend = datestart + timedelta(hours=default_event_duration)
 
-                else :
+                else:
                     print "NON TROVO DATA", p
                     continue
 
-                location = list[-1][1:]
-                summary = list[1][1:]
-                description = list[-2][2:]
+                print "DateStart: ", datestart
+                print "DateEnd: ", dateend
+
+                location = list_[-1][1:]
+                #print "location: ", location
+                summary = list_[1][1:]
+                #print "summary: ", summary
+                description = list_[-2][2:]
+                #print "description: ", description
 
                 url_match = re.search(re_url, p)
-                if url_match :
+                if url_match:
                     url = base_url + url_match.group()
-                    if description :
+                    if description:
                         description = description + " - " + url
                     else :
                         description = url
 
-                event.add('dtstart', dateStart)
-                event.add('dtstamp', dateStart) #maybe it's better to use NOW()
-                event.add('dtend', dateEnd)
+                event.add('dtstart', datestart)
+                event.add('dtstamp', datestart) # maybe it's better to use NOW()
+                event.add('dtend', dateend)
 
                 #print summary, location, description
 
@@ -100,7 +121,7 @@ class SuoniDelleDolomitiEventReader(EventReader):
                 
                 #TODO: add other info like the date!!
                 
-                event['uid'] = list[0][1:]
+                event['uid'] = list_[0][1:]
 
                 yield event
             except:
@@ -111,7 +132,10 @@ class SuoniDelleDolomitiEventReader(EventReader):
     
 
 def main():
-    scr = SuoniDelleDolomitiEventReader(False)
+    """
+    :rtype : None
+    """
+    scr = SuoniDelleDolomitiEventReader(True)
     events = scr.get_events()
     
     cal = Calendar()
